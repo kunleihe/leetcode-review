@@ -12,6 +12,7 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 app = Flask(__name__)
+db.init_db()
 
 
 def run_sync():
@@ -24,7 +25,7 @@ def run_sync():
         count = 0
         for sub in submissions:
             slug = sub["titleSlug"]
-            if db.get_problem(slug):
+            if db.get_review(slug):
                 continue
             try:
                 info = lc_client.fetch_question_info(slug, session=session)
@@ -98,7 +99,11 @@ def api_review(problem_id):
 
 @app.route("/api/sync", methods=["POST"])
 def api_sync():
-    return jsonify(run_sync())
+    result = run_sync()
+    if result["error"]:
+        status = 401 if "session" in result["error"].lower() else 500
+        return jsonify(result), status
+    return jsonify(result)
 
 
 if __name__ == "__main__":
