@@ -113,3 +113,14 @@ def test_synced_today(tmp_db):
 
 def test_not_synced_today(tmp_db):
     assert db.synced_today() is False
+
+
+def test_init_review_rejects_unknown_problem(tmp_db):
+    import sqlite3 as _sqlite3
+    with pytest.raises(_sqlite3.IntegrityError):
+        db.init_review("nonexistent-slug", "2026-06-01")
+
+
+def test_update_review_raises_on_missing(tmp_db):
+    with pytest.raises(ValueError):
+        db.update_review("nonexistent", "2026-06-10", 10, 2.5, 1, "2026-05-31")

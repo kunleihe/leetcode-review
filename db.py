@@ -8,6 +8,7 @@ DB_PATH = config.DB_PATH
 def _conn():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 
@@ -70,11 +71,13 @@ def get_review(problem_id):
 
 def update_review(problem_id, due_date, interval, ease_factor, repetitions, last_reviewed_at):
     with _conn() as conn:
-        conn.execute("""
+        cur = conn.execute("""
             UPDATE reviews
             SET due_date=?, interval=?, ease_factor=?, repetitions=?, last_reviewed_at=?
             WHERE problem_id=?
         """, (due_date, interval, ease_factor, repetitions, last_reviewed_at, problem_id))
+        if cur.rowcount == 0:
+            raise ValueError(f"No review row for problem_id={problem_id!r}")
 
 
 def get_due_reviews(today_str):
