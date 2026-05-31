@@ -116,6 +116,18 @@ def get_last_sync():
         return row["ts"] if row and row["ts"] is not None else None
 
 
+def get_latest_solved_ts():
+    with _conn() as conn:
+        row = conn.execute("SELECT MAX(first_solved_at) as ts FROM problems").fetchone()
+        return row["ts"] if row and row["ts"] is not None else None
+
+
+def count_problems():
+    with _conn() as conn:
+        row = conn.execute("SELECT COUNT(*) as n FROM problems").fetchone()
+        return row["n"]
+
+
 def synced_today():
     last = get_last_sync()
     if last is None:

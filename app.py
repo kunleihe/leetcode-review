@@ -1,4 +1,5 @@
 import logging
+import threading
 import time
 from datetime import date
 from flask import Flask, jsonify, render_template, request
@@ -14,45 +15,59 @@ log = logging.getLogger(__name__)
 app = Flask(__name__)
 db.init_db()
 
+_sync_lock = threading.Lock()
+_sync_state = {"running": False, "new_problems": 0, "error": None}
 
-def run_sync():
+
+def _run_sync_bg():
+    global _sync_state
     session = config.LEETCODE_SESSION
     if not session:
-        return {"new_problems": 0, "error": "LEETCODE_SESSION not configured in config.py"}
+        _sync_state = {"running": False, "new_problems": 0,
+                       "error": "LEETCODE_SESSION not configured"}
+        _sync_lock.release()
+        return
     try:
-        last_ts = db.get_last_sync() or 0
-        submissions = lc_client.fetch_ac_submissions(session=session, since_ts=last_ts)
+        since_ts = db.get_latest_solved_ts() or 0
+        initial = since_ts == 0
+        limit = config.INITIAL_SYNC_LIMIT if initial else None
         count = 0
-        for sub in submissions:
-            slug = sub["titleSlug"]
-            if db.get_review(slug):
-                continue
-            try:
-                info = lc_client.fetch_question_info(slug, session=session)
-            except Exception:
-                info = {"number": 0, "difficulty": "Unknown"}
-            ts = int(sub["timestamp"])
-            db.upsert_problem(
-                slug, sub["title"], int(info["number"]),
-                info["difficulty"],
-                f"https://leetcode.com/problems/{slug}/",
-                ts,
-            )
-            db.init_review(slug, date.fromtimestamp(ts).isoformat())
-            count += 1
+        done = False
+        for page in lc_client.iter_ac_submissions(
+            session=session, since_ts=since_ts
+        ):
+            for sub in page:
+                slug = sub["titleSlug"]
+                if db.get_review(slug):
+                    continue
+                try:
+                    info = lc_client.fetch_question_info(slug, session=session)
+                except Exception:
+                    info = {"number": 0, "difficulty": "Unknown"}
+                ts = int(sub["timestamp"])
+                db.upsert_problem(
+                    slug, sub["title"], int(info["number"]),
+                    info["difficulty"],
+                    f"https://leetcode.com/problems/{slug}/",
+                    ts,
+                )
+                db.init_review(slug, date.fromtimestamp(ts).isoformat())
+                count += 1
+                _sync_state["new_problems"] = count
+                if limit and count >= limit:
+                    done = True
+                    break
+            if done:
+                break
         db.log_sync(int(time.time()), count)
-        return {"new_problems": count, "error": None}
+        _sync_state = {"running": False, "new_problems": count, "error": None}
     except lc_client.AuthError as e:
-        return {"new_problems": 0, "error": str(e)}
+        _sync_state = {"running": False, "new_problems": 0, "error": str(e)}
     except Exception as e:
         log.exception("Sync failed")
-        return {"new_problems": 0, "error": str(e)}
-
-
-@app.before_request
-def auto_sync_on_index():
-    if request.path == "/" and not db.synced_today():
-        run_sync()
+        _sync_state = {"running": False, "new_problems": 0, "error": str(e)}
+    finally:
+        _sync_lock.release()
 
 
 @app.route("/")
@@ -67,6 +82,8 @@ def api_reviews():
         "due": db.get_due_reviews(today),
         "future": db.get_future_reviews(today),
         "today": today,
+        "total_problems": db.count_problems(),
+        "initial_sync_limit": config.INITIAL_SYNC_LIMIT,
     })
 
 
@@ -99,11 +116,17 @@ def api_review(problem_id):
 
 @app.route("/api/sync", methods=["POST"])
 def api_sync():
-    result = run_sync()
-    if result["error"]:
-        status = 401 if "session" in result["error"].lower() else 500
-        return jsonify(result), status
-    return jsonify(result)
+    global _sync_state
+    if not _sync_lock.acquire(blocking=False):
+        return jsonify({"status": "already_running"})
+    _sync_state = {"running": True, "new_problems": 0, "error": None}
+    threading.Thread(target=_run_sync_bg, daemon=True).start()
+    return jsonify({"status": "started"})
+
+
+@app.route("/api/sync/status")
+def api_sync_status():
+    return jsonify(_sync_state)
 
 
 if __name__ == "__main__":

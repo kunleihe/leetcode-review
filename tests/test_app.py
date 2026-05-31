@@ -60,10 +60,25 @@ def test_api_review_post_invalid_rating(client):
     assert resp.status_code == 400
 
 
-def test_api_sync_calls_run_sync(client):
+def test_api_sync_starts_background_sync(client):
     import app as flask_app
-    with patch.object(flask_app, "run_sync", return_value={"new_problems": 2, "error": None}) as m:
+    with patch.object(flask_app, "_run_sync_bg") as m, \
+         patch("threading.Thread") as mock_thread:
+        mock_thread.return_value.start = lambda: None
         resp = client.post("/api/sync")
         assert resp.status_code == 200
-        m.assert_called_once()
-        assert json.loads(resp.data)["new_problems"] == 2
+        data = json.loads(resp.data)
+        assert data["status"] in ("started", "already_running")
+        # Release the lock in case it was acquired
+        if flask_app._sync_lock.locked():
+            flask_app._sync_lock.release()
+
+
+def test_api_sync_status(client):
+    import app as flask_app
+    resp = client.get("/api/sync/status")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert "running" in data
+    assert "new_problems" in data
+    assert "error" in data
