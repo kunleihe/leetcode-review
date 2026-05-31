@@ -66,3 +66,10 @@ def test_fetch_question_info():
         info = lc_client.fetch_question_info("two-sum", session="fake", delay=0)
     assert info["difficulty"] == "Easy"
     assert info["number"] == "1"
+
+
+def test_fetch_ac_raises_on_graphql_error():
+    error_resp = {"errors": [{"message": "Unauthorized"}]}
+    with patch("lc_client.requests.post", return_value=mock_resp(error_resp)):
+        with pytest.raises(RuntimeError, match="GraphQL error"):
+            lc_client.fetch_ac_submissions(session="fake", since_ts=0, delay=0)
