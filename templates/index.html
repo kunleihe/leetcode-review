@@ -83,13 +83,33 @@
     let dueTotal = 0;
     let doneCount = 0;
     let todayDate = null;
+    let futureOpen = false;
+
+    function esc(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function parseLocalDate(isoStr) {
+      const [y, m, d] = isoStr.split("-").map(Number);
+      return new Date(y, m - 1, d);  // local midnight
+    }
 
     function daysFromToday(isoStr) {
-      return Math.round((new Date(isoStr) - todayDate) / 86400000);
+      return Math.round((parseLocalDate(isoStr) - todayDate) / 86400000);
     }
 
     function diffClass(d) {
       return "diff-" + d;
+    }
+
+    function showBanner(msg) {
+      const b = document.getElementById("banner");
+      b.textContent = msg;
+      b.style.display = "block";
     }
 
     function updateStats() {
@@ -115,13 +135,13 @@
           : `<span class="overdue">${-diff} 天前</span>`;
         const ratings = ["Again", "Hard", "Good", "Easy"];
         const btns = ratings.map(rt =>
-          `<button class="rating-btn" data-r="${rt}" onclick="rate('${r.problem_id}','${rt}')">${rt}</button>`
+          `<button class="rating-btn" data-r="${rt}" onclick="rate('${esc(r.problem_id)}','${rt}')">${rt}</button>`
         ).join("");
-        return `<tr id="row-${r.problem_id}">
-          <td style="color:#999;font-size:12px;">${r.number}</td>
-          <td><a href="${r.url}" target="_blank">${r.title}</a></td>
-          <td class="${diffClass(r.difficulty)}">${r.difficulty}</td>
-          <td style="color:#999;font-size:13px;">${r.due_date}</td>
+        return `<tr id="row-${esc(r.problem_id)}">
+          <td style="color:#999;font-size:12px;">${esc(r.number)}</td>
+          <td><a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.title)}</a></td>
+          <td class="${diffClass(r.difficulty)}">${esc(r.difficulty)}</td>
+          <td style="color:#999;font-size:13px;">${esc(r.due_date)}</td>
           <td>${overdueStr}</td>
           <td>${btns}</td>
         </tr>`;
@@ -130,7 +150,9 @@
 
     function renderFuture(rows) {
       const toggle = document.getElementById("future-toggle");
-      toggle.textContent = rows.length ? `▶ ${rows.length} 题` : "▶ 无";
+      const arrow = futureOpen ? "▼" : "▶";
+      toggle.textContent = rows.length ? `${arrow} ${rows.length} 题` : `${arrow} 无`;
+      document.getElementById("future-content").style.display = futureOpen ? "block" : "none";
       const tbody = document.getElementById("future-body");
       if (!rows.length) {
         tbody.innerHTML = `<tr><td colspan="5" class="empty">暂无未来计划</td></tr>`;
@@ -139,21 +161,26 @@
       tbody.innerHTML = rows.map(r => {
         const diff = daysFromToday(r.due_date);
         return `<tr>
-          <td style="color:#999;font-size:12px;">${r.number}</td>
-          <td><a href="${r.url}" target="_blank">${r.title}</a></td>
-          <td class="${diffClass(r.difficulty)}">${r.difficulty}</td>
-          <td style="color:#999;font-size:13px;">${r.due_date}</td>
+          <td style="color:#999;font-size:12px;">${esc(r.number)}</td>
+          <td><a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.title)}</a></td>
+          <td class="${diffClass(r.difficulty)}">${esc(r.difficulty)}</td>
+          <td style="color:#999;font-size:13px;">${esc(r.due_date)}</td>
           <td style="color:#999;font-size:13px;">${diff} 天后</td>
         </tr>`;
       }).join("");
     }
 
     async function load() {
-      const res = await fetch("/api/reviews");
-      const data = await res.json();
-      todayDate = new Date(data.today);
-      renderDue(data.due);
-      renderFuture(data.future);
+      try {
+        const res = await fetch("/api/reviews");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        todayDate = parseLocalDate(data.today);
+        renderDue(data.due);
+        renderFuture(data.future);
+      } catch (e) {
+        showBanner("加载失败: " + e.message);
+      }
     }
 
     async function rate(problemId, rating) {
@@ -162,7 +189,10 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rating }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        showBanner("评分失败，请重试");
+        return;
+      }
       const row = document.getElementById(`row-${problemId}`);
       if (row) {
         row.classList.add("fading");
@@ -181,9 +211,7 @@
       btn.disabled = false;
       btn.textContent = "立即同步";
       if (!res.ok || data.error) {
-        const b = document.getElementById("banner");
-        b.textContent = "⚠ " + (data.error || "同步失败");
-        b.style.display = "block";
+        showBanner("⚠ " + (data.error || "同步失败"));
       } else {
         document.getElementById("last-sync").textContent =
           `刚刚同步，新增 ${data.new_problems} 题`;
@@ -193,11 +221,11 @@
     }
 
     function toggleFuture() {
+      futureOpen = !futureOpen;
       const content = document.getElementById("future-content");
       const toggle = document.getElementById("future-toggle");
-      const isOpen = content.style.display === "block";
-      content.style.display = isOpen ? "none" : "block";
-      toggle.textContent = toggle.textContent.replace(isOpen ? "▼" : "▶", isOpen ? "▶" : "▼");
+      content.style.display = futureOpen ? "block" : "none";
+      toggle.textContent = toggle.textContent.replace(/[▶▼]/, futureOpen ? "▼" : "▶");
     }
 
     load();
