@@ -1,1 +1,206 @@
-<html><body>LeetCode Review</body></html>
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LeetCode Review</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; color: #333; }
+    #banner { display: none; background: #ff4d4f; color: white; padding: 10px 20px; text-align: center; font-size: 14px; }
+    header { background: white; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; }
+    header h1 { font-size: 18px; font-weight: 600; }
+    #stats { font-size: 14px; color: #666; margin-top: 4px; }
+    .header-right { text-align: right; }
+    #sync-btn { padding: 6px 14px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
+    #sync-btn:disabled { background: #ccc; cursor: not-allowed; }
+    #last-sync { font-size: 12px; color: #999; margin-top: 4px; }
+    main { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
+    section { background: white; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    .section-header { padding: 14px 20px; font-size: 15px; font-weight: 600; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 10px 16px; font-size: 12px; color: #888; font-weight: 500; border-bottom: 1px solid #eee; }
+    td { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr.fading { transition: opacity 0.3s; opacity: 0; }
+    .diff-Easy { color: #00b8a3; }
+    .diff-Medium { color: #e5a000; }
+    .diff-Hard { color: #ff375f; }
+    .overdue { color: #ff4d4f; }
+    .rating-btn { padding: 3px 9px; margin-right: 4px; border-radius: 4px; cursor: pointer; font-size: 12px; background: white; }
+    .rating-btn[data-r="Again"] { border: 1px solid #ff4d4f; color: #ff4d4f; }
+    .rating-btn[data-r="Hard"]  { border: 1px solid #e5a000; color: #a06800; }
+    .rating-btn[data-r="Good"]  { border: 1px solid #1a73e8; color: #1a73e8; }
+    .rating-btn[data-r="Easy"]  { border: 1px solid #00b8a3; color: #00b8a3; }
+    .rating-btn:hover { filter: brightness(0.92); }
+    a { color: inherit; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .empty { padding: 36px; text-align: center; color: #aaa; font-size: 14px; }
+    #future-content { display: none; }
+  </style>
+</head>
+<body>
+  <div id="banner"></div>
+  <header>
+    <div>
+      <h1>LeetCode Review</h1>
+      <div id="stats">加载中...</div>
+    </div>
+    <div class="header-right">
+      <button id="sync-btn" onclick="syncNow()">立即同步</button>
+      <div id="last-sync"></div>
+    </div>
+  </header>
+  <main>
+    <section>
+      <div class="section-header">
+        <span>今日待复习</span>
+        <span id="due-count" style="font-weight:400;color:#888;font-size:13px;"></span>
+      </div>
+      <table>
+        <thead><tr>
+          <th>题号</th><th>题目</th><th>难度</th><th>到期日</th><th>逾期/今天</th><th>掌握度</th>
+        </tr></thead>
+        <tbody id="due-body"></tbody>
+      </table>
+    </section>
+    <section>
+      <div class="section-header" onclick="toggleFuture()">
+        <span>未来计划</span>
+        <span id="future-toggle" style="font-weight:400;color:#888;font-size:13px;">▶ 展开</span>
+      </div>
+      <div id="future-content">
+        <table>
+          <thead><tr>
+            <th>题号</th><th>题目</th><th>难度</th><th>下次复习</th><th>剩余天数</th>
+          </tr></thead>
+          <tbody id="future-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script>
+    let dueTotal = 0;
+    let doneCount = 0;
+    let todayDate = null;
+
+    function daysFromToday(isoStr) {
+      return Math.round((new Date(isoStr) - todayDate) / 86400000);
+    }
+
+    function diffClass(d) {
+      return "diff-" + d;
+    }
+
+    function updateStats() {
+      const remaining = dueTotal - doneCount;
+      document.getElementById("stats").textContent =
+        `今日待复习 ${dueTotal} 题，已完成 ${doneCount} 题`;
+      document.getElementById("due-count").textContent =
+        remaining > 0 ? `${remaining} 题待完成` : "全部完成 🎉";
+    }
+
+    function renderDue(rows) {
+      dueTotal = rows.length;
+      updateStats();
+      const tbody = document.getElementById("due-body");
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="empty">今日无待复习题目，保持！</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = rows.map(r => {
+        const diff = daysFromToday(r.due_date);
+        const overdueStr = diff >= 0
+          ? `<span style="color:#52c41a">今天</span>`
+          : `<span class="overdue">${-diff} 天前</span>`;
+        const ratings = ["Again", "Hard", "Good", "Easy"];
+        const btns = ratings.map(rt =>
+          `<button class="rating-btn" data-r="${rt}" onclick="rate('${r.problem_id}','${rt}')">${rt}</button>`
+        ).join("");
+        return `<tr id="row-${r.problem_id}">
+          <td style="color:#999;font-size:12px;">${r.number}</td>
+          <td><a href="${r.url}" target="_blank">${r.title}</a></td>
+          <td class="${diffClass(r.difficulty)}">${r.difficulty}</td>
+          <td style="color:#999;font-size:13px;">${r.due_date}</td>
+          <td>${overdueStr}</td>
+          <td>${btns}</td>
+        </tr>`;
+      }).join("");
+    }
+
+    function renderFuture(rows) {
+      const toggle = document.getElementById("future-toggle");
+      toggle.textContent = rows.length ? `▶ ${rows.length} 题` : "▶ 无";
+      const tbody = document.getElementById("future-body");
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="empty">暂无未来计划</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = rows.map(r => {
+        const diff = daysFromToday(r.due_date);
+        return `<tr>
+          <td style="color:#999;font-size:12px;">${r.number}</td>
+          <td><a href="${r.url}" target="_blank">${r.title}</a></td>
+          <td class="${diffClass(r.difficulty)}">${r.difficulty}</td>
+          <td style="color:#999;font-size:13px;">${r.due_date}</td>
+          <td style="color:#999;font-size:13px;">${diff} 天后</td>
+        </tr>`;
+      }).join("");
+    }
+
+    async function load() {
+      const res = await fetch("/api/reviews");
+      const data = await res.json();
+      todayDate = new Date(data.today);
+      renderDue(data.due);
+      renderFuture(data.future);
+    }
+
+    async function rate(problemId, rating) {
+      const res = await fetch(`/api/review/${problemId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rating }),
+      });
+      if (!res.ok) return;
+      const row = document.getElementById(`row-${problemId}`);
+      if (row) {
+        row.classList.add("fading");
+        setTimeout(() => row.remove(), 300);
+      }
+      doneCount++;
+      updateStats();
+    }
+
+    async function syncNow() {
+      const btn = document.getElementById("sync-btn");
+      btn.disabled = true;
+      btn.textContent = "同步中...";
+      const res = await fetch("/api/sync", { method: "POST" });
+      const data = await res.json();
+      btn.disabled = false;
+      btn.textContent = "立即同步";
+      if (!res.ok || data.error) {
+        const b = document.getElementById("banner");
+        b.textContent = "⚠ " + (data.error || "同步失败");
+        b.style.display = "block";
+      } else {
+        document.getElementById("last-sync").textContent =
+          `刚刚同步，新增 ${data.new_problems} 题`;
+        doneCount = 0;
+        load();
+      }
+    }
+
+    function toggleFuture() {
+      const content = document.getElementById("future-content");
+      const toggle = document.getElementById("future-toggle");
+      const isOpen = content.style.display === "block";
+      content.style.display = isOpen ? "none" : "block";
+      toggle.textContent = toggle.textContent.replace(isOpen ? "▼" : "▶", isOpen ? "▶" : "▼");
+    }
+
+    load();
+  </script>
+</body>
+</html>
