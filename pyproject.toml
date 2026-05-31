@@ -3,12 +3,12 @@ name = "leetcode-review"
 version = "0.1.0"
 requires-python = ">=3.10"
 dependencies = [
-    "flask==3.0.3",
-    "requests==2.32.3",
+    "flask>=3.0",
+    "requests>=2.32",
 ]
 
 [tool.uv]
 dev-dependencies = [
-    "pytest==8.2.0",
-    "pytest-mock==3.14.0",
+    "pytest>=8.2",
+    "pytest-mock>=3.14",
 ]

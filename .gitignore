@@ -1,2 +1,6 @@
 .venv/
 leetcode.db
+__pycache__/
+*.py[cod]
+.env
+.env.*
