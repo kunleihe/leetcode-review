@@ -13,7 +13,7 @@ def calculate(rating, interval, ease_factor, repetitions, today):
         new_interval = 1
         new_repetitions = 0
 
-    new_ease = ease_factor + 0.1 - (5 - quality) * 0.08 + (5 - quality) ** 2 * 0.02
+    new_ease = ease_factor + 0.1 - (5 - quality) * 0.08 - (5 - quality) ** 2 * 0.02
     new_ease = round(max(1.3, new_ease), 4)
 
     due = date.fromisoformat(today) + timedelta(days=new_interval)

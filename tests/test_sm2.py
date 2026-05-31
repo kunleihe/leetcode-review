@@ -39,10 +39,10 @@ def test_interval_minimum_one():
 
 
 def test_ease_changes_on_hard():
-    # With the quadratic term, Hard (quality=2) results in a net increase
-    # 2.5 + 0.1 - 0.24 + 0.18 = 2.54
+    # Hard (quality=2) decreases ease factor
+    # 2.5 + 0.1 - 3*0.08 - 9*0.02 = 2.5 + 0.1 - 0.24 - 0.18 = 2.18
     r = sm2.calculate("Hard", interval=1, ease_factor=2.5, repetitions=0, today="2026-05-30")
-    assert r["ease_factor"] == 2.54
+    assert r["ease_factor"] < 2.5
 
 
 def test_ease_increases_on_easy():
@@ -69,12 +69,12 @@ def test_due_date_offset_from_today():
 
 
 def test_ease_factor_formula_exact():
-    # quality=2 (Hard): ef=2.5 → 2.5 + 0.1 - 3*0.08 + 3^2*0.02 = 2.5 + 0.1 - 0.24 + 0.18 = 2.54
+    # quality=2 (Hard): ef=2.5 → 2.5 + 0.1 - 3*0.08 - 3^2*0.02 = 2.5 + 0.1 - 0.24 - 0.18 = 2.18
     r = sm2.calculate("Hard", interval=1, ease_factor=2.5, repetitions=0, today="2026-05-31")
-    assert abs(r["ease_factor"] - 2.54) < 0.0001
+    assert abs(r["ease_factor"] - 2.18) < 0.0001
 
 
 def test_ease_factor_formula_again():
-    # quality=1 (Again): ef=2.5 → 2.5 + 0.1 - 4*0.08 + 4^2*0.02 = 2.5 + 0.1 - 0.32 + 0.32 = 2.6
+    # quality=1 (Again): ef=2.5 → 2.5 + 0.1 - 4*0.08 - 4^2*0.02 = 2.5 + 0.1 - 0.32 - 0.32 = 1.96
     r = sm2.calculate("Again", interval=1, ease_factor=2.5, repetitions=0, today="2026-05-31")
-    assert abs(r["ease_factor"] - 2.6) < 0.0001
+    assert abs(r["ease_factor"] - 1.96) < 0.0001
