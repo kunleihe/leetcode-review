@@ -20,6 +20,10 @@ def install():
         print("Error: uv not found. Install: curl -LsSf https://astral.sh/uv/install.sh | sh")
         sys.exit(1)
 
+    if not os.path.exists(app_path):
+        print(f"Error: app.py not found at {app_path}")
+        sys.exit(1)
+
     plist = textwrap.dedent(f"""\
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
@@ -49,10 +53,18 @@ def install():
         </plist>
     """)
 
-    with open(PLIST_PATH, "w") as f:
-        f.write(plist)
+    try:
+        with open(PLIST_PATH, "w") as f:
+            f.write(plist)
+    except OSError as e:
+        print(f"Error writing plist: {e}")
+        sys.exit(1)
 
-    subprocess.run(["launchctl", "load", PLIST_PATH], check=True)
+    try:
+        subprocess.run(["launchctl", "load", PLIST_PATH], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error loading LaunchAgent (exit {e.returncode}). Try: launchctl load {PLIST_PATH}")
+        sys.exit(1)
     print("Installed. Flask will auto-start on login.")
     print(f"  Open: http://127.0.0.1:5000")
     print(f"  Logs: {log_dir}/")
@@ -60,7 +72,7 @@ def install():
 
 def uninstall():
     if os.path.exists(PLIST_PATH):
-        subprocess.run(["launchctl", "unload", PLIST_PATH])
+        subprocess.run(["launchctl", "unload", PLIST_PATH], capture_output=True)
         os.remove(PLIST_PATH)
         print("Uninstalled.")
     else:
