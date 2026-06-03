@@ -132,4 +132,4 @@ def synced_today():
     last = get_last_sync()
     if last is None:
         return False
-    return datetime.fromtimestamp(last, tz=timezone.utc).date() == date.today()
+    return datetime.fromtimestamp(last).date() == date.today()

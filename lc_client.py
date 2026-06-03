@@ -83,11 +83,11 @@ query questionData($titleSlug: String!) {
 """
 
 
-def iter_ac_submissions(session, since_ts=0, delay=1.0):
+def iter_submissions(session, since_ts=0, delay=0.3):
     """
-    Generator: yields one list of AC submissions per page.
-    Each yielded list contains only AC submissions after since_ts,
-    deduplicated within this sync run (earliest AC per slug wins).
+    Generator: yields one list of submissions per page (all statuses).
+    Each yielded list contains only submissions after since_ts,
+    deduplicated within this sync run (most recent submission per slug).
     Stops when: no more pages or oldest submission on a page predates since_ts.
     Deduplication against already-synced problems is handled by the caller.
     """
@@ -103,20 +103,18 @@ def iter_ac_submissions(session, since_ts=0, delay=1.0):
         data = _parse(_post(payload, session))["submissionList"]
         submissions = data["submissions"]
 
-        page_ac = []
+        page_subs = []
         for sub in submissions:
-            if sub["statusDisplay"] != "Accepted":
-                continue
             ts = int(sub["timestamp"])
             if ts < since_ts:
                 continue
             slug = sub["titleSlug"]
             if slug not in seen_slugs:
                 seen_slugs.add(slug)
-                page_ac.append(sub)
+                page_subs.append(sub)
 
-        if page_ac:
-            yield page_ac
+        if page_subs:
+            yield page_subs
 
         if not data["hasNext"]:
             break
@@ -127,7 +125,7 @@ def iter_ac_submissions(session, since_ts=0, delay=1.0):
         time.sleep(delay)
 
 
-def fetch_question_info(slug, session, delay=0.5):
+def fetch_question_info(slug, session, delay=0.2):
     payload = {"query": _QUESTION_INFO_QUERY, "variables": {"titleSlug": slug}}
     q = _parse(_post(payload, session))["question"]
     time.sleep(delay)

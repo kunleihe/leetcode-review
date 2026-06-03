@@ -33,7 +33,7 @@ def _run_sync_bg():
         limit = config.INITIAL_SYNC_LIMIT if initial else None
         count = 0
         done = False
-        for page in lc_client.iter_ac_submissions(
+        for page in lc_client.iter_submissions(
             session=session, since_ts=since_ts
         ):
             for sub in page:
