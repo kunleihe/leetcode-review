@@ -101,7 +101,7 @@ def iter_submissions(session, since_ts=0, delay=0.3):
             "variables": {"offset": offset, "limit": limit},
         }
         data = _parse(_post(payload, session))["submissionList"]
-        submissions = data["submissions"]
+        submissions = data["submissions"] or []
 
         page_subs = []
         for sub in submissions:
@@ -129,4 +129,6 @@ def fetch_question_info(slug, session, delay=0.2):
     payload = {"query": _QUESTION_INFO_QUERY, "variables": {"titleSlug": slug}}
     q = _parse(_post(payload, session))["question"]
     time.sleep(delay)
+    if not q:
+        return {"number": 0, "difficulty": "Unknown"}
     return {"number": q["questionFrontendId"], "difficulty": q["difficulty"]}
