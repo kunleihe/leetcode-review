@@ -101,7 +101,9 @@ def iter_submissions(session, since_ts=0, delay=0.3):
             "variables": {"offset": offset, "limit": limit},
         }
         data = _parse(_post(payload, session))["submissionList"]
-        submissions = data["submissions"] or []
+        submissions = data["submissions"]
+        if submissions is None:
+            raise AuthError("LeetCode session cookie is invalid or expired.")
 
         page_subs = []
         for sub in submissions:
