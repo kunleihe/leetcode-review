@@ -21,7 +21,7 @@ _sync_state = {"running": False, "new_problems": 0, "error": None}
 
 def _run_sync_bg():
     global _sync_state
-    session = config.LEETCODE_SESSION
+    session = config.get_leetcode_session()
     if not session:
         _sync_state = {"running": False, "new_problems": 0,
                        "error": "LEETCODE_SESSION not configured"}
