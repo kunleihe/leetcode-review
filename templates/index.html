@@ -111,7 +111,7 @@
           <th>Problem</th>
           <th>Difficulty</th>
           <th>Due Date</th>
-          <th class="sortable" id="due-status-th" onclick="toggleDueSort()">Status <span id="due-sort-arrow"></span></th>
+          <th class="sortable sorted" id="due-status-th" onclick="toggleDueSort()">Status <span id="due-sort-arrow">↓</span></th>
           <th>Rating</th>
         </tr></thead>
         <tbody id="due-body"></tbody>
@@ -148,7 +148,7 @@
     let futureData = [];
     let duePage = 0;
     let futurePage = 0;
-    let dueSortAsc = null;      // null = default (no sort), true = most overdue first, false = least overdue first
+    let dueSortAsc = false;     // null = no sort, true = most overdue first, false = least overdue first (default)
     let futureSortAsc = true;   // true = soonest first (default)
     let dueQuery = "";
     let futureQuery = "";
