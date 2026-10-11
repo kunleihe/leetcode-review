@@ -167,7 +167,36 @@ uv run python install.py --uninstall  # remove
 
 Logs go to `~/Library/Logs/leetcode-review/`.
 
-### 5. Tests
+### 5. Access from your phone (including cellular)
+
+1. Install [Tailscale on your Mac](https://tailscale.com/download/mac) and
+   [your phone](https://tailscale.com/download). Open both apps, sign in with the
+   same account, and allow the VPN / network extension permissions when prompted.
+2. Keep the review server running (use the login service above, or
+   `uv run python app.py` in a separate terminal).
+3. Enable private mobile access:
+
+   ```bash
+   uv run python mobile.py
+   ```
+
+4. Open the printed `http://100.x.x.x:5001` address in your phone's browser with
+   Tailscale connected. To verify cross-network access, turn off Wi-Fi on the
+   phone and use cellular data.
+
+The script uses [Tailscale Serve](https://tailscale.com/docs/reference/tailscale-cli/serve)
+to forward the app's local port within your private Tailscale network. The app
+continues to listen on localhost. No router configuration is needed. Forwarding
+persists across Tailscale restarts; your Mac must stay awake with Tailscale and
+the review server running for the phone to reach it.
+
+To disable mobile access:
+
+```bash
+uv run python mobile.py --off
+```
+
+### 6. Tests
 
 ```bash
 uv run pytest
